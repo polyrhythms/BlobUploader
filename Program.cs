@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
 using System.Threading.Tasks;
@@ -7,47 +8,62 @@ namespace BlobUploader
 {
     class Program
     {
+        public static BlobService BlobService;
+
         static async Task Main()
         {
             const string localPathPrefix = @"I:\Music\";
-            //const string collection = @"My Downloaded Music - FLAC\";
-            const string collection = @"My CDs - FLAC\";
             const string shareName = @"music";
 
-            string connectionString = ConfigurationManager.AppSettings.Get("connectionString");
-
-            using (StreamWriter log = new StreamWriter("./log.txt", append: true))
+            var collections = new List<string>()
             {
-                var blobService = new BlobService(connectionString, log);
-                var artists = Directory.GetDirectories(localPathPrefix + collection);
+                @"My CDs - FLAC\",
+                @"My Downloaded Music - FLAC\",
+            };
+            var connectionString = ConfigurationManager.AppSettings.Get("ConnectionString");
 
-                var startWithArtist = "Jethro Tull";
-                var started = false;
+            using (var log = new BlobLog())
+            {
+                BlobService = new BlobService(connectionString, log);
 
                 try
                 {
-                    foreach (var artistPath in artists)
+                    var lastRunTime = log.GetLastRunTime();
+
+                    // Update playlist files at the top level that have changed since the 
+                    // last time we ran this program.
+                    var playlists = Directory.GetFiles(localPathPrefix);
+                    foreach (var playlistPath in playlists)
                     {
-                        var artist = Path.GetFileName(artistPath);
-                        if (!string.IsNullOrEmpty(startWithArtist) && 
-                            !started && artist != startWithArtist)
-                        {
-                            continue;
-                        }
-                        started = true;
-                        artist += @"\";
+                        var playlist = Path.GetFileName(playlistPath);
+                        await WriteFileIfNeeded(localPathPrefix + playlist, playlist, 
+                            true, lastRunTime);
+                    }
 
-                        var albums = Directory.GetDirectories(artistPath);
-                        foreach (var albumPath in albums)
-                        {
-                            var album = Path.GetFileName(albumPath) + @"\";
+                    // TODO: update database file
 
-                            var songs = Directory.GetFiles(albumPath);
-                            foreach (var songPath in songs)
+                    // Drill down the path of collection/artist/album to find songs that
+                    // have been updated since the last time we ran this program.
+                    foreach (var collection in collections)
+                    {
+                        var artists = Directory.GetDirectories(localPathPrefix + collection);
+
+                        foreach (var artistPath in artists)
+                        {
+                            var artist = Path.GetFileName(artistPath) + @"\";
+
+                            var albums = Directory.GetDirectories(artistPath);
+                            foreach (var albumPath in albums)
                             {
-                                var song = Path.GetFileName(songPath);
-                                await blobService.WriteFile(songPath, shareName,
-                                    collection + artist + album + song);
+                                var album = Path.GetFileName(albumPath) + @"\";
+
+                                var songs = Directory.GetFiles(albumPath);
+                                foreach (var songPath in songs)
+                                {
+                                    var song = Path.GetFileName(songPath);
+                                    await WriteFileIfNeeded(songPath, 
+                                        collection + artist + album + song, true, lastRunTime);
+                                }
                             }
                         }
                     }
@@ -59,6 +75,17 @@ namespace BlobUploader
                 }
 
                 log.Close();
+                log.SetLastRunTime(DateTime.Now);
+            }
+
+            async Task WriteFileIfNeeded(string localPath, string blobPath,
+                bool overwrite, DateTime lastRunTime)
+            {
+                var lastWriteTime = File.GetLastWriteTime(localPath);
+                if (lastWriteTime > lastRunTime)
+                {
+                    await BlobService.WriteFile(localPath, shareName, blobPath, overwrite);
+                }
             }
         }
     }

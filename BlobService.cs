@@ -46,19 +46,25 @@ namespace BlobUploader
             return readStream;
         }
 
-        public async Task WriteFile(string localPath, string containerName, string blobPath)
+        public async Task WriteFile(string localPath, string containerName, string blobPath,
+            bool overwrite)
         {
             try
             {
                 var containerClient = ServiceClient.GetBlobContainerClient(containerName);
                 var blobClient = containerClient.GetBlobClient(blobPath);
 
-                // TODO: add a flag to either delete if it exists or skip if it exists.
-                // await blobClient.DeleteIfExistsAsync();
-                var exists = await blobClient.ExistsAsync();
-                if (exists.Value)
+                if (overwrite)
                 {
-                    return;
+                    await blobClient.DeleteIfExistsAsync();
+                }
+                else
+                {
+                    var exists = await blobClient.ExistsAsync();
+                    if (exists.Value)
+                    {
+                        return;
+                    }
                 }
 
                 Console.WriteLine("Writing " + blobPath);
