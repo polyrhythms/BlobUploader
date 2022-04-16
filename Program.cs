@@ -13,6 +13,7 @@ namespace BlobUploader
         static async Task Main()
         {
             const string localPathPrefix = @"I:\Music\";
+            const string databasePath = @"Database\Music Inventory.accdb";
             const string shareName = @"music";
 
             var collections = new List<string>()
@@ -39,6 +40,9 @@ namespace BlobUploader
                         await WriteFileIfNeeded(localPathPrefix + playlist, playlist, 
                             true, lastRunTime);
                     }
+
+                    await WriteFileIfNeeded(localPathPrefix + databasePath, databasePath, 
+                        true, lastRunTime);
 
                     // TODO: update database file
 
