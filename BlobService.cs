@@ -1,7 +1,6 @@
 ﻿using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
-using Microsoft.WindowsAzure.Storage;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -12,7 +11,6 @@ namespace BlobUploader
     {
         private readonly BlobClientOptions ClientOptions;
         private readonly BlobUploadOptions UploadOptions;
-        private readonly CloudStorageAccount StorageAccount;
         private readonly BlobServiceClient ServiceClient;
         private readonly StreamWriter Log;
 
@@ -29,7 +27,6 @@ namespace BlobUploader
                 }
             };
 
-            StorageAccount = CloudStorageAccount.Parse(connectionString);
             ServiceClient = new BlobServiceClient(connectionString, ClientOptions);
             Log = log;
         }
@@ -37,12 +34,12 @@ namespace BlobUploader
         public async Task<MemoryStream> ReadFile(
             string shareName, string pathName, string fileName)
         {
-            var blobClient = StorageAccount.CreateCloudBlobClient();
-            var container = blobClient.GetContainerReference(shareName);
-            var cloudBlockBlob = container.GetBlockBlobReference(pathName + fileName);
+            var containerClient = ServiceClient.GetBlobContainerClient(shareName);
+            var blobClient = containerClient.GetBlobClient(pathName + fileName);
 
             var readStream = new MemoryStream();
-            await cloudBlockBlob.DownloadToStreamAsync(readStream);
+            await blobClient.DownloadToAsync(readStream);
+
             return readStream;
         }
 
