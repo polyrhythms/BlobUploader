@@ -12,7 +12,7 @@ namespace BlobUploader
 
         static async Task Main()
         {
-            const string localPathPrefix = @"I:\Music\";
+            const string localPathPrefix = @"H:\Music\";
             const string databasePath = @"Database\Music Inventory.accdb";
             const string shareName = @"music";
 
@@ -20,6 +20,7 @@ namespace BlobUploader
             {
                 @"My CDs - FLAC\",
                 @"My Downloaded Music - FLAC\",
+                @"My SACDs\",
             };
             var connectionString = ConfigurationManager.AppSettings.Get("ConnectionString");
 
@@ -43,8 +44,6 @@ namespace BlobUploader
 
                     await WriteFileIfNeeded(localPathPrefix + databasePath, databasePath, 
                         true, lastRunTime);
-
-                    // TODO: update database file
 
                     // Drill down the path of collection/artist/album to find songs that
                     // have been updated since the last time we ran this program.
